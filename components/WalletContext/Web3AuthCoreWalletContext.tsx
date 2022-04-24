@@ -9,7 +9,7 @@ import QRCodeModal from '@walletconnect/qrcode-modal';
 import ethProvider, {IWalletProvider} from "./ethProvider";
 import {CHAIN_TYPES, CHAIN_CONFIG, WalletContextValues} from "./index";
 
-// const clientId = "BK_OUnw-SX4sFD68X09VtvcVByx87QgeYE7HOnqfhndm888psQx8zO-hBKpE25UIQ4nJKaR1BF4M5e4BIknMcN0";
+// const clientId = "BBkZCAq6z_1vDfhR7dVn9EP2Ewi0HL0_iklIClZ5zokVziRcJonEE4fZ2-ZzcITryjN3xdoW3wdwR8-X706d3Og";
 
 
 interface WalletProviderProps {
