@@ -1,6 +1,6 @@
 import {CHAIN_NAMESPACES, WALLET_ADAPTER_TYPE} from '@web3auth/base';
-import WalletProvider, {WalletContext} from "./Web3AuthWalletContext";
-// import WalletProvider, {WalletContext} from "./Web3AuthCoreWalletContext";
+//import WalletProvider, {WalletContext} from "./Web3AuthWalletContext";
+import WalletProvider, {WalletContext} from "./Web3AuthCoreWalletContext";
 
 export const CHAIN_CONFIG = {
     polygon: {
