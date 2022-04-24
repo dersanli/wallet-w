@@ -1,22 +1,20 @@
-import { SafeEventEmitterProvider } from '@web3auth/base';
-import { ethers } from 'ethers';
+import {SafeEventEmitterProvider} from '@web3auth/base';
+import {ethers} from 'ethers';
 import Web3 from "web3";
 
 export interface IWalletProvider {
     getAccounts: () => Promise<any>;
-    getBalance: () => Promise<any>;
+    getBalance: (accountAddress: string) => Promise<any>;
     signPurchase: (tokenAddress: string, tokenId: string) => Promise<void>;
     checkTxn: (txn: string) => Promise<any>;
-    lalala: () => Promise<any>;
 }
 
-const ethProvider = ( provider: SafeEventEmitterProvider ): IWalletProvider => {
+const ethProvider = (provider: SafeEventEmitterProvider): IWalletProvider => {
 
     const getAccounts = async () => {
         try {
 
-            if(provider === undefined)
-            {
+            if (provider === undefined) {
                 console.error('ethProvider - getAccounts', provider)
                 return;
             }
@@ -32,14 +30,11 @@ const ethProvider = ( provider: SafeEventEmitterProvider ): IWalletProvider => {
         }
     };
 
-    const getBalance = async () => {
+    const getBalance = async (accountAddress: string) => {
         try {
-            const web3 = new ethers.providers.Web3Provider(provider as any);
-
-            const accounts = await web3.listAccounts();
-            const balance = await web3.getBalance(accounts[0]);
-            const formattedBalance = parseFloat(ethers.utils.formatEther(balance)).toFixed(3);
-            return formattedBalance;
+            const web3 = new Web3(provider as any);
+            // const address = (await web3.eth.getAccounts())[0];
+            return parseFloat(web3.utils.fromWei(await web3.eth.getBalance(accountAddress))).toFixed(2);
         } catch (error) {
             console.error('Error', error);
         }
@@ -47,6 +42,7 @@ const ethProvider = ( provider: SafeEventEmitterProvider ): IWalletProvider => {
 
     const signPurchase = async (tokenAddress: string, tokenId: string) => {
         const web3 = new ethers.providers.Web3Provider(provider as any);
+        // const web3 = new Web3(provider as any);
         const signer = web3.getSigner();
         try {
             const abi = ['function mint(address account, uint256 tokenId) external payable'];
@@ -75,13 +71,7 @@ const ethProvider = ( provider: SafeEventEmitterProvider ): IWalletProvider => {
         }
     };
 
-
-    const lalala = async () => {
-        console.log('lalalal')
-        return 555;
-    }
-
-    return { getAccounts, getBalance, signPurchase, checkTxn, lalala };
+    return {getAccounts, getBalance, signPurchase, checkTxn};
 };
 
 export default ethProvider;

@@ -1,6 +1,6 @@
 import React, {createContext, useCallback, useEffect, useState} from 'react';
-import {Web3AuthCore} from "@web3auth/core";
 import {ADAPTER_EVENTS, SafeEventEmitterProvider, WALLET_ADAPTER_TYPE} from "@web3auth/base";
+import {Web3AuthCore} from "@web3auth/core";
 import {MetamaskAdapter} from "@web3auth/metamask-adapter";
 import {TorusWalletAdapter} from '@web3auth/torus-evm-adapter';
 import {TorusWalletConnectorPlugin} from '@web3auth/torus-wallet-connector-plugin';
@@ -8,6 +8,9 @@ import {WalletConnectV1Adapter} from '@web3auth/wallet-connect-v1-adapter';
 import QRCodeModal from '@walletconnect/qrcode-modal';
 import ethProvider, {IWalletProvider} from "./ethProvider";
 import {CHAIN_CONFIG} from "./chainConfig";
+import {LOGIN_MODAL_EVENTS} from "@web3auth/ui";
+
+// const clientId = "BK_OUnw-SX4sFD68X09VtvcVByx87QgeYE7HOnqfhndm888psQx8zO-hBKpE25UIQ4nJKaR1BF4M5e4BIknMcN0";
 
 export enum CHAIN_TYPES {
     polygon = 'polygon',
@@ -22,31 +25,33 @@ interface WalletProviderProps {
 export interface WalletContextValues {
     isLoading: boolean;
     connected: boolean;
-    accountPublicKey: string | null;
+    accountAddress: string | null;
+    accountBalance: number | null;
     login: (adapter: WALLET_ADAPTER_TYPE, torusSocial?: string) => Promise<void>;
     logout: () => Promise<void>;
-    getAccounts: () => Promise<any>;
+
 }
 
 export const WalletContext = createContext<WalletContextValues>({
     isLoading: false,
     connected: false,
-    accountPublicKey: null,
+    accountAddress: null,
+    accountBalance: null,
     login: async () => {
     },
     logout: async () => {
-    },
-    getAccounts: async () => {
     },
 });
 
 const WalletProvider = ({children, chainType}: WalletProviderProps) => {
     const [web3Auth, setWeb3Auth] = useState<Web3AuthCore | null>(null);
-    const [connected, setConnected] = useState<boolean>(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [user, setUser] = useState<unknown | null>(null);
     const [provider, setProvider] = useState<IWalletProvider | null>(null);
-    const [accountPublicKey, setAccountPublicKey] = useState<string | null>(null);
+    const [user, setUser] = useState<unknown | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const [connected, setConnected] = useState<boolean>(false);
+    const [accountAddress, setAccountAddress] = useState<string | null>(null);
+    const [accountBalance, setAccountBalance] = useState<number | null>(null);
 
     const setWalletProvider = useCallback(
         (web3authProvider: SafeEventEmitterProvider) => {
@@ -54,39 +59,41 @@ const WalletProvider = ({children, chainType}: WalletProviderProps) => {
             const walletProvider = ethProvider(web3authProvider);
             setProvider(walletProvider);
         },
-        []
+        [chainType]
     );
 
 
     useEffect(() => {
         if (!provider) {
-            console.error('WalletContext -useEffect [provider, chainType] - provider is null' );
-        }
+            console.error('WalletContext -useEffect [provider, chainType] - provider is null');
+        } else {
 
-        const init = async () => {
-            try {
-                console.warn('WalletContext -useEffect [provider, chainType] - TRYING to getAccounts');
-                await getAccounts()
+            const initAccountDetails = async () => {
+                try {
+                    console.warn('WalletContext -useEffect [provider, chainType] - TRYING to getAccounts');
+                    const accountAddress = await provider.getAccounts();
+                    setAccountAddress(accountAddress);
+                    const currentBalance = await provider.getBalance(accountAddress);
+                    setAccountBalance(currentBalance)
 
-            } catch (e) {
-                throw(e)
+                } catch (e) {
+                    throw(e)
+                }
             }
-        }
 
-        init();
+            initAccountDetails();
+        }
     }, [provider, chainType])
 
     useEffect(() => {
         const subscribeAuthEvents = (web3auth: Web3AuthCore) => {
             // Can subscribe to all ADAPTER_EVENTS and LOGIN_MODAL_EVENTS
             web3auth.on(ADAPTER_EVENTS.CONNECTED, (data: unknown) => {
+                console.log('XXX - WalletContext -ADAPTER_EVENTS.CONNECTED', data);
                 setIsLoading(false);
                 setConnected(true)
                 setUser(data);
-                // console.log('WalletContext -ADAPTER_EVENTS.CONNECTED', web3auth.provider);
                 console.log('WalletContext -ADAPTER_EVENTS.CONNECTED', user);
-
-
                 setWalletProvider(web3auth.provider as SafeEventEmitterProvider);
             });
 
@@ -96,11 +103,12 @@ const WalletProvider = ({children, chainType}: WalletProviderProps) => {
 
             web3auth.on(ADAPTER_EVENTS.DISCONNECTED, () => {
                 console.log('WalletContext - useEffect [] - subscribeAuthEvents - ADAPTER_EVENTS.DISCONNECTED');
-                setConnected(false);
                 setIsLoading(false);
+                setConnected(false);
                 setUser(null);
                 setProvider(null);
-                setAccountPublicKey(null)
+                setAccountAddress(null);
+                setAccountBalance(null);
             });
 
             web3auth.on(ADAPTER_EVENTS.ERRORED, (error: unknown) => {
@@ -111,9 +119,7 @@ const WalletProvider = ({children, chainType}: WalletProviderProps) => {
 
         const init = async () => {
             try {
-
                 const web3auth = new Web3AuthCore({chainConfig: CHAIN_CONFIG[chainType]});
-                subscribeAuthEvents(web3auth);
 
                 const metamaskAdapter = new MetamaskAdapter({
                     chainConfig: CHAIN_CONFIG[chainType]
@@ -134,6 +140,17 @@ const WalletProvider = ({children, chainType}: WalletProviderProps) => {
                     chainConfig: CHAIN_CONFIG[chainType],
                 });
 
+                // const openLoginAdapter = new OpenloginAdapter({
+                //         adapterSettings: {
+                //             network: "testnet",
+                //             clientId,
+                //             uxMode: "popup"
+                //         },
+                //         chainConfig: CHAIN_CONFIG[chainType],
+                //
+                //     }
+                // )
+
                 const torusPlugin = new TorusWalletConnectorPlugin({
                     torusWalletOpts: {buttonPosition: 'bottom-left', modalZIndex: 10},
                     walletInitOptions: {
@@ -147,19 +164,19 @@ const WalletProvider = ({children, chainType}: WalletProviderProps) => {
                     },
                 });
                 await web3auth.addPlugin(torusPlugin);
-                // setTorusPlugin(torusPlugin);
                 web3auth.configureAdapter(metamaskAdapter);
                 web3auth.configureAdapter(torusWalletAdapter);
                 web3auth.configureAdapter(walletConnectV1Adapter);
-                await web3auth.init();
+                subscribeAuthEvents(web3auth);
                 setWeb3Auth(web3auth);
+                await web3auth.init();
             } catch (e) {
                 console.error('WalletContext useEffect [] - ', e);
             }
         }
 
         init();
-    }, [])
+    }, [chainType])
 
 
     const login = async (adapter: WALLET_ADAPTER_TYPE) => {
@@ -196,27 +213,13 @@ const WalletProvider = ({children, chainType}: WalletProviderProps) => {
         }
     };
 
-    const getAccounts = async () => {
-        if (!provider) {
-            console.error('WalletContext getAccounts - ', "provider not initialized yet");
-            return;
-        }
-
-        try {
-            const publicKey = await provider.getAccounts();
-            setAccountPublicKey(publicKey);
-        } catch (e) {
-            console.error('WalletContext getAccounts - ', e)
-        }
-    };
-
     const context: WalletContextValues = {
         isLoading,
         connected,
-        accountPublicKey,
+        accountAddress,
+        accountBalance,
         login,
         logout,
-        getAccounts,
     };
 
 
