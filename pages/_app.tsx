@@ -1,6 +1,6 @@
 import '../styles/globals.css'
 import type {AppProps} from 'next/app'
-import WalletProvider, {CHAIN_TYPES} from "../components/WalletContext";
+import {WalletProvider, CHAIN_TYPES} from "../components/WalletContext";
 
 
 const MyApp = ({Component, pageProps}: AppProps) =>
